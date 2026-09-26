@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { CatFace } from "@/components/cat-face";
 import { CheckIcon } from "@/components/icons";
 import type { Video } from "@/lib/videos";
@@ -6,7 +7,10 @@ import type { Video } from "@/lib/videos";
 export function VideoCard({ video }: { video: Video }) {
   return (
     <article>
-      <button type="button" className="group block w-full text-left">
+      <Link
+        href={`/watch?v=${video.id}`}
+        className="group block w-full rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-black"
+      >
         <div className="relative aspect-video overflow-hidden rounded-xl bg-[#e5e5e5] transition-[border-radius] duration-200 group-hover:rounded-none">
           <Image
             src={`/thumbnails/${video.id}.jpg`}
@@ -35,7 +39,7 @@ export function VideoCard({ video }: { video: Video }) {
             </span>
           </span>
         </div>
-      </button>
+      </Link>
     </article>
   );
 }
