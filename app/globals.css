@@ -1,18 +1,43 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: #ffffff;
   --foreground: #0f0f0f;
+  --ink: #0f0f0f;
+  --muted: #606060;
+  --chip: #f2f2f2;
+  --line: #e5e5e5;
+  --hover: #e5e5e5;
+  --field: #f8f8f8;
+  --field-border: #d3d3d3;
   color-scheme: light;
+}
+
+.dark {
+  --background: #0f0f0f;
+  --foreground: #f1f1f1;
+  --ink: #f1f1f1;
+  --muted: #aaaaaa;
+  --chip: #272727;
+  --line: #3f3f3f;
+  --hover: #3f3f3f;
+  --field: #121212;
+  --field-border: #303030;
+  color-scheme: dark;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-ink: #0f0f0f;
-  --color-muted: #606060;
-  --color-chip: #f2f2f2;
-  --color-line: #e5e5e5;
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-chip: var(--chip);
+  --color-line: var(--line);
+  --color-hover: var(--hover);
+  --color-field: var(--field);
+  --color-field-border: var(--field-border);
   --font-sans: var(--font-roboto), Roboto, Arial, Helvetica, sans-serif;
   --font-script: var(--font-caveat), "Segoe Script", cursive;
 }

@@ -60,7 +60,7 @@ export function HomeShell() {
   });
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-white text-ink">
+    <div className="flex h-dvh flex-col overflow-hidden bg-background text-ink">
       <SiteHeader
         query={query}
         onQueryChange={setQuery}
@@ -86,7 +86,7 @@ export function HomeShell() {
         />
         <main className="min-w-0 flex-1 overflow-y-auto" aria-label="Home">
           <h1 className="sr-only">Home</h1>
-          <div className="sticky top-0 z-20 bg-white">
+          <div className="sticky top-0 z-20 bg-background">
             <div className="relative">
               <div
                 ref={scrollerRef}
@@ -102,8 +102,8 @@ export function HomeShell() {
                       onClick={() => setCategory(item)}
                       className={`h-8 shrink-0 rounded-lg px-3 text-sm ${
                         selected
-                          ? "bg-ink font-medium text-white"
-                          : "bg-chip hover:bg-[#e5e5e5]"
+                          ? "bg-ink font-medium text-background"
+                          : "bg-chip hover:bg-hover"
                       }`}
                     >
                       {item}
@@ -118,7 +118,7 @@ export function HomeShell() {
                   onClick={() =>
                     scrollerRef.current?.scrollBy({ left: 280, behavior: "smooth" })
                   }
-                  className="absolute top-1/2 right-3 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-white shadow-[0_2px_8px_rgba(0,0,0,0.18)]"
+                  className="absolute top-1/2 right-3 grid size-8 -translate-y-1/2 place-items-center rounded-full bg-background shadow-[0_2px_8px_rgba(0,0,0,0.18)]"
                 >
                   <ChevronRightIcon />
                 </button>

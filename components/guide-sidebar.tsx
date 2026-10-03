@@ -64,7 +64,7 @@ export function GuideSidebar({
   return (
     <aside
       aria-label="Guide"
-      className={`fixed bottom-0 left-0 top-[104px] z-40 w-[272px] shrink-0 flex-col overflow-y-auto bg-white px-3 py-3 sm:top-[68px] ${
+      className={`fixed bottom-0 left-0 top-[104px] z-40 w-[272px] shrink-0 flex-col overflow-y-auto bg-background px-3 py-3 sm:top-[68px] ${
         mobileOpen ? "flex" : "hidden"
       } ${collapsed ? "lg:hidden" : "lg:static lg:flex lg:h-full lg:min-h-0"}`}
     >
