@@ -1,7 +1,11 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { BellIcon, MenuIcon, MicIcon, PawIcon, PlayMark, SearchIcon } from "@/components/icons";
 import { CatFace } from "@/components/cat-face";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { authClient } from "@/lib/auth-client";
 
 function SearchField({
   id,
@@ -47,6 +51,14 @@ export function SiteHeader({
   onMenu: () => void;
   onHome: () => void;
 }) {
+  const router = useRouter();
+  const { data: session, isPending } = authClient.useSession();
+
+  async function signOut() {
+    await authClient.signOut();
+    router.refresh();
+  }
+
   return (
     <header className="z-50 shrink-0 border-b border-line bg-background">
       <div className="flex h-14 items-center gap-2 px-3 sm:h-[68px] sm:px-4">
@@ -96,12 +108,14 @@ export function SiteHeader({
           <p className="mr-2 hidden font-script text-[26px] leading-none text-ink xl:block">
             Life is Better with Cats
           </p>
-          <Link
-            href="/admin"
-            className="rounded-full px-3 py-2 text-sm font-medium hover:bg-chip"
-          >
-            Admin
-          </Link>
+          {session?.user.admin ? (
+            <Link
+              href="/admin"
+              className="rounded-full px-3 py-2 text-sm font-medium hover:bg-chip"
+            >
+              Admin
+            </Link>
+          ) : null}
           <ThemeToggle />
           <button
             type="button"
@@ -110,13 +124,30 @@ export function SiteHeader({
           >
             <BellIcon />
           </button>
-          <button
-            type="button"
-            aria-label="Account"
+          {isPending ? (
+            <span className="size-8 rounded-full bg-chip" />
+          ) : session ? (
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="rounded-full px-3 py-2 text-sm font-medium hover:bg-chip"
+            >
+              Sign out
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              className="rounded-full px-3 py-2 text-sm font-medium hover:bg-chip"
+            >
+              Sign in
+            </Link>
+          )}
+          <span
+            aria-hidden
             className="grid size-8 place-items-center overflow-hidden rounded-full bg-[#f3d2b0]"
           >
             <CatFace color="#e09a62" />
-          </button>
+          </span>
         </div>
       </div>
 

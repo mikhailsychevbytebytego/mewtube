@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { channels, comments, users, videos } from "@/drizzle/schema";
 import type { AdminType } from "@/lib/admin";
 import { db } from "@/lib/db";
+import { requireAdmin } from "@/lib/require-admin";
 
 type FormState = { error: string };
 
@@ -115,6 +116,7 @@ async function adjustCommentCount(
 }
 
 export async function saveUser(_state: FormState, formData: FormData): Promise<FormState> {
+  await requireAdmin();
   try {
     const mode = String(formData.get("mode") ?? "create");
     const name = required(formData, "name", "Name");
@@ -133,6 +135,7 @@ export async function saveUser(_state: FormState, formData: FormData): Promise<F
 }
 
 export async function deleteUser(id: string, _formData: FormData) {
+  await requireAdmin();
   try {
     await db.delete(users).where(eq(users.id, id));
   } catch (error) {
@@ -148,6 +151,7 @@ export async function saveChannel(
   _state: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  await requireAdmin();
   try {
     const mode = String(formData.get("mode") ?? "create");
     const name = required(formData, "name", "Name");
@@ -174,6 +178,7 @@ export async function saveChannel(
 }
 
 export async function deleteChannel(id: string, _formData: FormData) {
+  await requireAdmin();
   try {
     await db.delete(channels).where(eq(channels.id, id));
   } catch (error) {
@@ -186,6 +191,7 @@ export async function deleteChannel(id: string, _formData: FormData) {
 }
 
 export async function saveVideo(_state: FormState, formData: FormData): Promise<FormState> {
+  await requireAdmin();
   try {
     const mode = String(formData.get("mode") ?? "create");
     const section = optional(formData, "channelSection");
@@ -228,6 +234,7 @@ export async function saveVideo(_state: FormState, formData: FormData): Promise<
 }
 
 export async function deleteVideo(id: string, _formData: FormData) {
+  await requireAdmin();
   try {
     await db.delete(videos).where(eq(videos.id, id));
   } catch (error) {
@@ -243,6 +250,7 @@ export async function saveComment(
   _state: FormState,
   formData: FormData,
 ): Promise<FormState> {
+  await requireAdmin();
   try {
     const mode = String(formData.get("mode") ?? "create");
     const id = mode === "create" ? crypto.randomUUID() : existingId(formData);
@@ -281,6 +289,7 @@ export async function saveComment(
 }
 
 export async function deleteComment(id: string, _formData: FormData) {
+  await requireAdmin();
   try {
     await db.transaction(async (tx) => {
       const [existing] = await tx
