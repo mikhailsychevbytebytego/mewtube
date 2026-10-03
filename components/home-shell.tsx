@@ -5,9 +5,9 @@ import { ChevronRightIcon } from "@/components/icons";
 import { GuideSidebar } from "@/components/guide-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { VideoCard } from "@/components/video-card";
-import { categories, videos, type CategoryFilter } from "@/lib/videos";
+import { categories, type CategoryFilter, type Video } from "@/lib/videos";
 
-export function HomeShell() {
+export function HomeShell({ videos }: { videos: Video[] }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<CategoryFilter>("All");
   const [mobileOpen, setMobileOpen] = useState(false);

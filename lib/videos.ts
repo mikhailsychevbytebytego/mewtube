@@ -15,16 +15,36 @@ export type CategoryFilter = (typeof categories)[number];
 
 export type VideoCategory = Exclude<CategoryFilter, "All">;
 
+export function watchHref(video: { slug?: string; id: string }) {
+  return `/watch?v=${video.slug ?? video.id}`;
+}
+
+export function channelHref(handle: string | undefined) {
+  return handle ? `/@${handle}` : "/";
+}
+
 export type Video = {
   id: string;
+  slug?: string;
   title: string;
   channel: string;
+  channelHandle?: string;
+  hasChannelPage?: boolean;
   views: string;
   uploaded: string;
   duration: string;
   categories: VideoCategory[];
   avatar: string;
   innerEar: string;
+  thumbnail?: string;
+  playbackUrl?: string | null;
+  poster?: string | null;
+  likes?: string | null;
+  hashtags?: string[];
+  paragraphs?: string[];
+  descriptionMore?: string | null;
+  commentCount?: number;
+  subscribers?: string | null;
 };
 
 export const videos: Video[] = [

@@ -53,6 +53,8 @@ export function GuideSidebar({
   onToggleYou,
   onHome,
   onCloseMobile,
+  homeCurrent = true,
+  embedded = false,
 }: {
   mobileOpen: boolean;
   collapsed: boolean;
@@ -60,19 +62,25 @@ export function GuideSidebar({
   onToggleYou: () => void;
   onHome: () => void;
   onCloseMobile: () => void;
+  homeCurrent?: boolean;
+  embedded?: boolean;
 }) {
   return (
     <aside
       aria-label="Guide"
-      className={`fixed bottom-0 left-0 top-[104px] z-40 w-[272px] shrink-0 flex-col overflow-y-auto bg-background px-3 py-3 sm:top-[68px] ${
-        mobileOpen ? "flex" : "hidden"
-      } ${collapsed ? "lg:hidden" : "lg:static lg:flex lg:h-full lg:min-h-0"}`}
+      className={
+        embedded
+          ? "flex min-h-0 w-full flex-1 flex-col overflow-y-auto bg-background px-3 pb-4"
+          : `fixed bottom-0 left-0 top-[104px] z-40 w-[272px] shrink-0 flex-col overflow-y-auto bg-background px-3 py-3 sm:top-[68px] ${
+              mobileOpen ? "flex" : "hidden"
+            } ${collapsed ? "lg:hidden" : "lg:static lg:flex lg:h-full lg:min-h-0"}`
+      }
     >
       <nav className="flex flex-col gap-0.5" aria-label="Primary">
         <GuideButton
           label="Home"
-          icon={<HomeIcon filled />}
-          current
+          icon={<HomeIcon filled={homeCurrent} />}
+          current={homeCurrent}
           onClick={() => {
             onHome();
             onCloseMobile();
