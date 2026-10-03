@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { BellIcon, MenuIcon, MicIcon, PawIcon, PlayMark, SearchIcon } from "@/components/icons";
 import { CatFace } from "@/components/cat-face";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -95,6 +96,12 @@ export function SiteHeader({
           <p className="mr-2 hidden font-script text-[26px] leading-none text-ink xl:block">
             Life is Better with Cats
           </p>
+          <Link
+            href="/admin"
+            className="rounded-full px-3 py-2 text-sm font-medium hover:bg-chip"
+          >
+            Admin
+          </Link>
           <ThemeToggle />
           <button
             type="button"
