@@ -245,6 +245,23 @@ export function ChevronRightIcon() {
   );
 }
 
+export function MoonIcon() {
+  return (
+    <Icon className="size-5">
+      <path d="M16.5 13.5A6.5 6.5 0 0 1 9 5.2 6.5 6.5 0 1 0 16.5 13.5Z" />
+    </Icon>
+  );
+}
+
+export function SunIcon() {
+  return (
+    <Icon className="size-5">
+      <circle cx="12" cy="12" r="3.25" />
+      <path d="M12 3.5v1.8M12 18.7v1.8M3.5 12h1.8M18.7 12h1.8M6 6l1.3 1.3M16.7 16.7 18 18M18 6l-1.3 1.3M7.3 16.7 6 18" />
+    </Icon>
+  );
+}
+
 export function PlayMark({ className = "h-5 w-7" }: { className?: string }) {
   return (
     <svg viewBox="0 0 28 20" aria-hidden="true" className={className}>

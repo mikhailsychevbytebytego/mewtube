@@ -142,7 +142,7 @@ export function WatchScreen({ videoId }: { videoId: string }) {
   }
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-white text-ink">
+    <div className="flex h-dvh flex-col overflow-hidden bg-background text-ink">
       <SiteHeader
         query={query}
         onQueryChange={setQuery}
@@ -265,7 +265,7 @@ export function WatchScreen({ videoId }: { videoId: string }) {
                       setLiked((value) => !value);
                       setDisliked(false);
                     }}
-                    className="flex h-9 items-center gap-2 rounded-l-full px-3 text-sm font-medium hover:bg-[#e5e5e5]"
+                    className="flex h-9 items-center gap-2 rounded-l-full px-3 text-sm font-medium hover:bg-hover"
                   >
                     <ThumbIcon />
                     {isPiano ? pianoDetails.likes : "Like"}
@@ -279,7 +279,7 @@ export function WatchScreen({ videoId }: { videoId: string }) {
                       setDisliked((value) => !value);
                       setLiked(false);
                     }}
-                    className="grid h-9 w-11 place-items-center rounded-r-full hover:bg-[#e5e5e5]"
+                    className="grid h-9 w-11 place-items-center rounded-r-full hover:bg-hover"
                   >
                     <span className="rotate-180">
                       <ThumbIcon />
@@ -310,7 +310,7 @@ export function WatchScreen({ videoId }: { videoId: string }) {
                 <button
                   type="button"
                   aria-label="More actions"
-                  className="grid size-9 place-items-center rounded-full bg-chip hover:bg-[#e5e5e5]"
+                  className="grid size-9 place-items-center rounded-full bg-chip hover:bg-hover"
                 >
                   <PlayerIcon>
                     <circle cx="6" cy="12" r="1" fill="currentColor" stroke="none" />
@@ -435,7 +435,7 @@ export function WatchScreen({ videoId }: { videoId: string }) {
                       aria-pressed={selected}
                       onClick={() => setChip(item)}
                       className={`h-8 shrink-0 rounded-lg px-3 text-sm ${
-                        selected ? "bg-ink font-medium text-white" : "bg-chip hover:bg-[#e5e5e5]"
+                        selected ? "bg-ink font-medium text-background" : "bg-chip hover:bg-hover"
                       }`}
                     >
                       {item}
@@ -498,7 +498,7 @@ function ActionButton({
       type="button"
       aria-pressed={pressed}
       onClick={onClick}
-      className="flex h-9 items-center gap-2 rounded-full bg-chip px-3 text-sm font-medium hover:bg-[#e5e5e5]"
+      className="flex h-9 items-center gap-2 rounded-full bg-chip px-3 text-sm font-medium hover:bg-hover"
     >
       {children}
     </button>

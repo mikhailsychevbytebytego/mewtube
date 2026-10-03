@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Caveat, Roboto } from "next/font/google";
 import "./globals.css";
 
@@ -26,9 +27,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${roboto.variable} ${caveat.variable} h-full antialiased`}
     >
-      <body className={`${roboto.className} h-full`}>{children}</body>
+      <body className={`${roboto.className} h-full`}>
+        <Script id="theme" strategy="beforeInteractive">
+          {`try{if(localStorage.getItem("theme")==="dark")document.documentElement.classList.add("dark")}catch(e){}`}
+        </Script>
+        {children}
+      </body>
     </html>
   );
 }

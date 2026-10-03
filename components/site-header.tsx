@@ -1,5 +1,6 @@
 import { BellIcon, MenuIcon, MicIcon, PawIcon, PlayMark, SearchIcon } from "@/components/icons";
 import { CatFace } from "@/components/cat-face";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 function SearchField({
   id,
@@ -11,7 +12,7 @@ function SearchField({
   onQueryChange: (value: string) => void;
 }) {
   return (
-    <div className="flex h-10 w-full min-w-0 max-w-[640px] items-center rounded-full border border-[#d3d3d3] pl-4 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] focus-within:border-[#1c62b9]">
+    <div className="flex h-10 w-full min-w-0 max-w-[640px] items-center rounded-full border border-field-border pl-4 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] focus-within:border-[#1c62b9]">
       <label htmlFor={id} className="sr-only">
         Search
       </label>
@@ -21,12 +22,12 @@ function SearchField({
         value={query}
         onChange={(event) => onQueryChange(event.target.value)}
         placeholder="Search for cats, meows, and more..."
-        className="min-w-0 flex-1 bg-transparent text-base text-ink outline-none placeholder:text-[#717171]"
+        className="min-w-0 flex-1 bg-transparent text-base text-ink outline-none placeholder:text-muted"
       />
       <button
         type="submit"
         aria-label="Search"
-        className="grid h-10 w-14 shrink-0 place-items-center rounded-r-full border-l border-[#d3d3d3] bg-[#f8f8f8] hover:bg-[#f0f0f0]"
+        className="grid h-10 w-14 shrink-0 place-items-center rounded-r-full border-l border-field-border bg-field hover:bg-hover"
       >
         <SearchIcon />
       </button>
@@ -46,7 +47,7 @@ export function SiteHeader({
   onHome: () => void;
 }) {
   return (
-    <header className="z-50 shrink-0 border-b border-line bg-white">
+    <header className="z-50 shrink-0 border-b border-line bg-background">
       <div className="flex h-14 items-center gap-2 px-3 sm:h-[68px] sm:px-4">
         <div className="flex shrink-0 items-center gap-1">
           <button
@@ -84,16 +85,17 @@ export function SiteHeader({
           <button
             type="button"
             aria-label="Voice search"
-            className="hidden size-10 shrink-0 place-items-center rounded-full bg-chip hover:bg-[#e5e5e5] sm:grid"
+            className="hidden size-10 shrink-0 place-items-center rounded-full bg-chip hover:bg-hover sm:grid"
           >
             <MicIcon />
           </button>
         </form>
 
         <div className="ml-auto flex shrink-0 items-center gap-1 sm:ml-0 sm:gap-2">
-          <p className="mr-2 hidden font-script text-[26px] leading-none text-[#2c2c2c] xl:block">
+          <p className="mr-2 hidden font-script text-[26px] leading-none text-ink xl:block">
             Life is Better with Cats
           </p>
+          <ThemeToggle />
           <button
             type="button"
             aria-label="Notifications"
