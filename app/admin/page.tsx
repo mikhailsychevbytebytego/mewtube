@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AdminScreen } from "@/components/admin-screen";
 import { adminError, getAdminData, isAdminType } from "@/lib/admin";
+import { requireAdmin } from "@/lib/require-admin";
 
 export const metadata: Metadata = {
   title: "Admin - CatTube",
@@ -13,6 +14,7 @@ type AdminPageProps = {
 };
 
 export default async function AdminPage({ searchParams }: AdminPageProps) {
+  await requireAdmin();
   const params = await searchParams;
   const type = isAdminType(params.type) ? params.type : "users";
   const data = await getAdminData();
