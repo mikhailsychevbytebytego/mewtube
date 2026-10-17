@@ -158,7 +158,6 @@ export function MobileChannel({
           onHome={onHome}
           onCloseMobile={onCloseGuide}
           homeCurrent={false}
-          phoneDrawer
         />
       ) : null}
 

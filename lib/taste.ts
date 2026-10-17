@@ -185,7 +185,9 @@ function assertTasteCatalog() {
 
 assertTasteCatalog();
 
-const byId = new Map(tasteDimensions.map((dimension) => [dimension.id, dimension]));
+const byId = new Map<string, TasteDimension>(
+  tasteDimensions.map((dimension) => [dimension.id, dimension]),
+);
 
 export function tasteDimension(id: string) {
   return byId.get(id);
