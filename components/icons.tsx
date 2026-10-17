@@ -46,6 +46,15 @@ export function MicIcon() {
   );
 }
 
+export function PhoneIcon() {
+  return (
+    <Icon className="size-5">
+      <rect x="8" y="3" width="8" height="18" rx="2" />
+      <path d="M11 18h2" />
+    </Icon>
+  );
+}
+
 export function BellIcon() {
   return (
     <Icon>
