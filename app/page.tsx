@@ -3,6 +3,7 @@ import { HomeShell } from "@/components/home-shell";
 import { getHomeVideos, searchVideos } from "@/lib/catalog";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 type HomeProps = {
   searchParams: Promise<{ q?: string | string[] }>;
