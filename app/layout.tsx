@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import { Caveat, Roboto } from "next/font/google";
+import { cookies } from "next/headers";
 import "./globals.css";
 
 const roboto = Roboto({
@@ -23,19 +23,16 @@ export const metadata: Metadata = {
     "Good Cats. Better Days. Watch kittens, compilations, and cozy cat videos on CatTube.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const theme = (await cookies()).get("theme")?.value;
+
   return (
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${roboto.variable} ${caveat.variable} h-full antialiased`}
+      className={`${roboto.variable} ${caveat.variable} h-full antialiased${theme === "dark" ? " dark" : ""}`}
     >
-      <body className={`${roboto.className} h-full`}>
-        <Script id="theme" strategy="beforeInteractive">
-          {`try{if(localStorage.getItem("theme")==="dark")document.documentElement.classList.add("dark")}catch(e){}`}
-        </Script>
-        {children}
-      </body>
+      <body className={`${roboto.className} h-full`}>{children}</body>
     </html>
   );
 }

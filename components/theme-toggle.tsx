@@ -1,7 +1,14 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { MoonIcon, SunIcon } from "@/components/icons";
+
+const ONE_YEAR = 60 * 60 * 24 * 365;
+
+function writeTheme(theme: "dark" | "light") {
+  localStorage.setItem("theme", theme);
+  document.cookie = `theme=${theme}; path=/; max-age=${ONE_YEAR}; samesite=lax`;
+}
 
 function subscribe(onStoreChange: () => void) {
   window.addEventListener("theme-change", onStoreChange);
@@ -15,10 +22,18 @@ function isDark() {
 export function ThemeToggle() {
   const dark = useSyncExternalStore(subscribe, isDark, () => false);
 
+  useEffect(() => {
+    const stored = localStorage.getItem("theme");
+    if (stored !== "dark" && stored !== "light") return;
+    document.documentElement.classList.toggle("dark", stored === "dark");
+    document.cookie = `theme=${stored}; path=/; max-age=${ONE_YEAR}; samesite=lax`;
+    window.dispatchEvent(new Event("theme-change"));
+  }, []);
+
   function toggle() {
     const next = !isDark();
     document.documentElement.classList.toggle("dark", next);
-    localStorage.setItem("theme", next ? "dark" : "light");
+    writeTheme(next ? "dark" : "light");
     window.dispatchEvent(new Event("theme-change"));
   }
 
