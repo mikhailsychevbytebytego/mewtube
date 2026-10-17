@@ -119,55 +119,138 @@ function iframeUrl(uid: string, hls?: string) {
   return `https://${new URL(hls).host}/${uid}/iframe`;
 }
 
-async function uploadStream(title: string, sourceUrl: string) {
-  const { account, token } = cloudflareAuth();
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
+function falQueueUrl(value: string) {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error("Unexpected generation status.");
+  }
+  if (url.protocol !== "https:" || url.hostname !== "queue.fal.run") {
+    throw new Error("Unexpected generation status.");
+  }
+  return url.toString();
+}
+
+function httpsUrl(value: string) {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error("Unexpected video address.");
+  }
+  if (url.protocol !== "https:") throw new Error("Unexpected video address.");
+  return url.toString();
+}
+
+async function queueFal(model: string, body: unknown) {
+  const headers = falHeaders();
+  const queued = await fetch(`https://queue.fal.run/${model}`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+  const ticket = (await queued.json()) as {
+    status_url?: string;
+    response_url?: string;
+    error?: string;
+    detail?: unknown;
   };
+  if (!queued.ok || !ticket.status_url || !ticket.response_url) {
+    const detail = typeof ticket.detail === "string" ? ticket.detail : ticket.error;
+    throw new Error(detail || "Could not start generation.");
+  }
+  return {
+    statusUrl: falQueueUrl(ticket.status_url),
+    responseUrl: falQueueUrl(ticket.response_url),
+  };
+}
+
+export async function startGeneratedVideo(title: string, thumbnail: string) {
+  if (!thumbnail.startsWith("https://imagedelivery.net/")) {
+    throw new Error("Confirm a generated thumbnail first.");
+  }
+  return queueFal(videoModel, {
+    prompt: title,
+    image_url: thumbnail,
+    duration: 15,
+    resolution: "768P",
+    prompt_expansion_mode: "disabled",
+  });
+}
+
+export async function readGeneratedVideo(statusUrl: string, responseUrl: string) {
+  const headers = falHeaders();
+  const statusResponse = await fetch(falQueueUrl(statusUrl), { headers });
+  if (!statusResponse.ok) throw new Error("Generation status could not be checked.");
+  const status = (await statusResponse.json()) as { status?: string; error?: string };
+  if (status.status === "FAILED") throw new Error(status.error || "Generation failed.");
+  if (status.status !== "COMPLETED") return { pending: true as const };
+
+  const resultResponse = await fetch(falQueueUrl(responseUrl), { headers });
+  if (!resultResponse.ok) throw new Error("Generation finished without a result.");
+  const result = (await resultResponse.json()) as { video?: { url?: string } };
+  const videoUrl = result.video?.url;
+  if (!videoUrl) throw new Error("No video was returned.");
+  return { pending: false as const, videoUrl: httpsUrl(videoUrl) };
+}
+
+type StreamStatus = {
+  result?: {
+    uid?: string;
+    readyToStream?: boolean;
+    playback?: { hls?: string };
+    status?: { state?: string; errorReasonText?: string };
+  };
+};
+
+function playbackFrom(status: StreamStatus) {
+  const uid = status.result?.uid;
+  if (status.result?.status?.state === "error") {
+    throw new Error(status.result.status.errorReasonText || "The video could not be processed.");
+  }
+  if (uid && status.result?.readyToStream && status.result.playback?.hls) {
+    return iframeUrl(uid, status.result.playback.hls);
+  }
+  return null;
+}
+
+export async function copyGeneratedVideo(title: string, sourceUrl: string) {
+  const { account, token } = cloudflareAuth();
   const copied = await fetch(
     `https://api.cloudflare.com/client/v4/accounts/${account}/stream/copy`,
     {
       method: "POST",
-      headers,
-      body: JSON.stringify({ url: sourceUrl, meta: { name: title } }),
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ url: httpsUrl(sourceUrl), meta: { name: title } }),
     },
   );
-  const payload = (await copied.json()) as {
+  const payload = (await copied.json()) as StreamStatus & {
     success?: boolean;
     errors?: { message?: string }[];
-    result?: { uid?: string; readyToStream?: boolean; playback?: { hls?: string } };
   };
   const uid = payload.result?.uid;
   if (!copied.ok || !payload.success || !uid) {
     throw new Error(payload.errors?.[0]?.message || "Could not upload the video.");
   }
-  if (payload.result?.readyToStream && payload.result.playback?.hls) {
-    return iframeUrl(uid, payload.result.playback.hls);
-  }
+  const playbackUrl = playbackFrom(payload);
+  return playbackUrl ? { uid, playbackUrl } : { uid };
+}
 
-  const deadline = Date.now() + 8 * 60 * 1000;
-  while (Date.now() < deadline) {
-    await sleep(4000);
-    const statusResponse = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${account}/stream/${uid}`,
-      { headers: { Authorization: `Bearer ${token}` } },
-    );
-    const status = (await statusResponse.json()) as {
-      result?: {
-        readyToStream?: boolean;
-        playback?: { hls?: string };
-        status?: { state?: string; errorReasonText?: string };
-      };
-    };
-    if (status.result?.status?.state === "error") {
-      throw new Error(status.result.status.errorReasonText || "The video could not be processed.");
-    }
-    if (status.result?.readyToStream && status.result.playback?.hls) {
-      return iframeUrl(uid, status.result.playback.hls);
-    }
-  }
-  throw new Error("The video took too long to process.");
+export async function readCopiedVideo(uid: string) {
+  if (!/^[A-Za-z0-9]{16,64}$/.test(uid)) throw new Error("Unexpected video id.");
+  const { account, token } = cloudflareAuth();
+  const statusResponse = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${account}/stream/${uid}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  const status = (await statusResponse.json()) as StreamStatus;
+  if (!statusResponse.ok) throw new Error("The video status could not be checked.");
+  const playbackUrl = playbackFrom({ ...status, result: { ...status.result, uid } });
+  return playbackUrl ? { pending: false as const, playbackUrl } : { pending: true as const };
 }
 
 function slugify(title: string) {
@@ -218,25 +301,19 @@ async function uploadsChannel() {
   return created.id;
 }
 
-export async function publishVideo(title: string, thumbnail: string) {
+export async function saveGeneratedVideo(title: string, thumbnail: string, playbackUrl: string) {
   if (!thumbnail.startsWith("https://imagedelivery.net/")) {
     throw new Error("Confirm a generated thumbnail first.");
   }
+  if (!playbackUrl.startsWith("https://")) throw new Error("Unexpected video address.");
 
-  const result = await falResult<{ video?: { url?: string } }>(
-    videoModel,
-    {
-      prompt: title,
-      image_url: thumbnail,
-      duration: 15,
-      resolution: "768P",
-      prompt_expansion_mode: "disabled",
-    },
-    12 * 60 * 1000,
-  );
-  const source = result.video?.url;
-  if (!source) throw new Error("No video was returned.");
-  const playbackUrl = await uploadStream(title, source);
+  const [existing] = await db
+    .select({ slug: videos.slug })
+    .from(videos)
+    .where(eq(videos.playbackUrl, playbackUrl))
+    .limit(1);
+  if (existing) return existing.slug;
+
   const slug = await uniqueSlug(title);
   const channelId = await uploadsChannel();
 
