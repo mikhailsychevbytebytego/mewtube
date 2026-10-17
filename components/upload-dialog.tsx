@@ -48,30 +48,75 @@ export function UploadDialog() {
     setPhase("edit");
   }
 
+  async function postVideo(body: Record<string, string>) {
+    const response = await fetch("/api/generate/video", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const payload = (await response.json().catch(() => null)) as {
+      slug?: string;
+      statusUrl?: string;
+      responseUrl?: string;
+      videoUrl?: string;
+      uid?: string;
+      pending?: boolean;
+      error?: string;
+    } | null;
+    if (!response.ok || !payload) {
+      throw new Error(payload?.error || "Could not create the video.");
+    }
+    return payload;
+  }
+
   async function confirmVideo() {
     if (!thumbnailUrl) return;
     setError(null);
     setPhase("video");
-    const response = await fetch("/api/generate/video", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ title, thumbnailUrl }),
-    });
-    const payload = (await response.json().catch(() => null)) as {
-      slug?: string;
-      error?: string;
-    } | null;
-    if (!response.ok || !payload?.slug) {
+    try {
+      const started = await postVideo({ action: "start", title, thumbnailUrl });
+      if (!started.statusUrl || !started.responseUrl) {
+        throw new Error("Could not start the video.");
+      }
+      const deadline = Date.now() + 15 * 60 * 1000;
+      let videoUrl = "";
+      while (!videoUrl) {
+        if (Date.now() > deadline) throw new Error("The video took too long to create.");
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        const status = await postVideo({
+          action: "video",
+          statusUrl: started.statusUrl,
+          responseUrl: started.responseUrl,
+        });
+        if (status.videoUrl) videoUrl = status.videoUrl;
+      }
+
+      const copied = await postVideo({ action: "copy", title, thumbnailUrl, videoUrl });
+      let slug = copied.slug;
+      while (!slug) {
+        if (Date.now() > deadline || !copied.uid) {
+          throw new Error("The video took too long to upload.");
+        }
+        await new Promise((resolve) => setTimeout(resolve, 4000));
+        const status = await postVideo({
+          action: "finish",
+          title,
+          thumbnailUrl,
+          uid: copied.uid,
+        });
+        slug = status.slug;
+      }
+
+      setOpen(false);
+      setTitle("");
+      setThumbnailUrl(null);
       setPhase("edit");
-      setError(payload?.error || "Could not create the video.");
-      return;
+      router.push(`/watch?v=${slug}`);
+      router.refresh();
+    } catch (caught) {
+      setPhase("edit");
+      setError(caught instanceof Error ? caught.message : "Could not create the video.");
     }
-    setOpen(false);
-    setTitle("");
-    setThumbnailUrl(null);
-    setPhase("edit");
-    router.push(`/watch?v=${payload.slug}`);
-    router.refresh();
   }
 
   return (
