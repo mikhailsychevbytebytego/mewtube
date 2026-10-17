@@ -1,20 +1,35 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronRightIcon } from "@/components/icons";
 import { GuideSidebar } from "@/components/guide-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { VideoCard } from "@/components/video-card";
 import { categories, type CategoryFilter, type Video } from "@/lib/videos";
 
-export function HomeShell({ videos }: { videos: Video[] }) {
-  const [query, setQuery] = useState("");
+export function HomeShell({
+  videos,
+  query = "",
+  pending = false,
+  error,
+}: {
+  videos: Video[];
+  query?: string;
+  pending?: boolean;
+  error?: string;
+}) {
+  const router = useRouter();
   const [category, setCategory] = useState<CategoryFilter>("All");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [youOpen, setYouOpen] = useState(true);
   const [canScrollChips, setCanScrollChips] = useState(false);
   const scrollerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setCategory("All");
+  }, [query]);
 
   useEffect(() => {
     const element = scrollerRef.current;
@@ -36,9 +51,9 @@ export function HomeShell({ videos }: { videos: Video[] }) {
   }, []);
 
   function goHome() {
-    setQuery("");
     setCategory("All");
     setMobileOpen(false);
+    if (query) router.push("/");
   }
 
   function toggleGuide() {
@@ -49,21 +64,14 @@ export function HomeShell({ videos }: { videos: Video[] }) {
     setMobileOpen((open) => !open);
   }
 
-  const normalizedQuery = query.trim().toLowerCase();
-  const visibleVideos = videos.filter((video) => {
-    const matchesCategory =
-      category === "All" || video.categories.includes(category);
-    const matchesQuery =
-      normalizedQuery.length === 0 ||
-      `${video.title} ${video.channel}`.toLowerCase().includes(normalizedQuery);
-    return matchesCategory && matchesQuery;
-  });
+  const visibleVideos = videos.filter(
+    (video) => category === "All" || video.categories.includes(category),
+  );
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background text-ink">
       <SiteHeader
         query={query}
-        onQueryChange={setQuery}
         onMenu={toggleGuide}
         onHome={goHome}
       />
@@ -85,7 +93,11 @@ export function HomeShell({ videos }: { videos: Video[] }) {
           onCloseMobile={() => setMobileOpen(false)}
         />
         <main className="min-w-0 flex-1 overflow-y-auto" aria-label="Home">
-          <h1 className="sr-only">Home</h1>
+          {query && !pending ? (
+            <h1 className="px-4 pt-4 text-lg font-medium sm:px-6">Results for “{query}”</h1>
+          ) : (
+            <h1 className="sr-only">Home</h1>
+          )}
           <div className="sticky top-0 z-20 bg-background">
             <div className="relative">
               <div
@@ -126,11 +138,17 @@ export function HomeShell({ videos }: { videos: Video[] }) {
             </div>
           </div>
 
-          {visibleVideos.length === 0 ? (
+          {pending ? (
+            <p className="px-6 py-16 text-center text-sm text-muted">Searching thumbnails...</p>
+          ) : error ? (
+            <div className="px-6 py-16 text-center">
+              <p className="text-lg font-medium">{error}</p>
+            </div>
+          ) : visibleVideos.length === 0 ? (
             <div className="px-6 py-16 text-center">
               <p className="text-lg font-medium">No videos found</p>
               <p className="mt-1 text-sm text-muted">
-                Try a different search or category.
+                {query ? "Try a different search or category." : "Try another category."}
               </p>
             </div>
           ) : (

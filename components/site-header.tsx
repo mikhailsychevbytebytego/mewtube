@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BellIcon, MenuIcon, MicIcon, PawIcon, PlayMark, SearchIcon } from "@/components/icons";
 import { CatFace } from "@/components/cat-face";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { authClient } from "@/lib/auth-client";
+import { searchHref } from "@/lib/videos";
 
 function SearchField({
   id,
@@ -41,18 +43,26 @@ function SearchField({
 }
 
 export function SiteHeader({
-  query,
-  onQueryChange,
+  query = "",
   onMenu,
   onHome,
 }: {
-  query: string;
-  onQueryChange: (value: string) => void;
+  query?: string;
   onMenu: () => void;
   onHome: () => void;
 }) {
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
+  const [draft, setDraft] = useState(query);
+
+  useEffect(() => {
+    setDraft(query);
+  }, [query]);
+
+  function submit(event: FormEvent) {
+    event.preventDefault();
+    router.push(searchHref(draft));
+  }
 
   async function signOut() {
     await authClient.signOut();
@@ -92,9 +102,9 @@ export function SiteHeader({
         <form
           role="search"
           className="mx-auto hidden min-w-0 flex-1 items-center justify-center gap-3 px-2 sm:flex sm:px-4"
-          onSubmit={(event) => event.preventDefault()}
+          onSubmit={submit}
         >
-          <SearchField id="search" query={query} onQueryChange={onQueryChange} />
+          <SearchField id="search" query={draft} onQueryChange={setDraft} />
           <button
             type="button"
             aria-label="Voice search"
@@ -154,12 +164,12 @@ export function SiteHeader({
       <form
         role="search"
         className="px-3 pb-2 sm:hidden"
-        onSubmit={(event) => event.preventDefault()}
+        onSubmit={submit}
       >
         <SearchField
           id="search-mobile"
-          query={query}
-          onQueryChange={onQueryChange}
+          query={draft}
+          onQueryChange={setDraft}
         />
       </form>
     </header>

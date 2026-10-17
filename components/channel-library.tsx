@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CatFace } from "@/components/cat-face";
 import { CheckIcon } from "@/components/icons";
@@ -22,17 +21,10 @@ export function ChannelLibrary({
   videos: Video[];
 }) {
   const router = useRouter();
-  const [query, setQuery] = useState("");
-  const needle = query.trim().toLowerCase();
-  const visible = videos.filter((video) =>
-    needle.length === 0 || `${video.title} ${video.channel}`.toLowerCase().includes(needle),
-  );
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background text-ink">
       <SiteHeader
-        query={query}
-        onQueryChange={setQuery}
         onMenu={() => router.push("/")}
         onHome={() => router.push("/")}
       />
@@ -50,11 +42,11 @@ export function ChannelLibrary({
             {subscribers ? <p className="mt-1 text-sm text-muted">{subscribers}</p> : null}
           </div>
         </div>
-        {visible.length === 0 ? (
+        {videos.length === 0 ? (
           <p className="mx-auto mt-10 max-w-[1750px] text-sm text-muted">No videos found.</p>
         ) : (
           <div className="mx-auto mt-6 grid max-w-[1750px] grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {visible.map((video) => (
+            {videos.map((video) => (
               <VideoCard key={video.id} video={video} />
             ))}
           </div>

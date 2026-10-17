@@ -1,5 +1,6 @@
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, isNotNull, sql } from "drizzle-orm";
 import { channels, comments, users, videos } from "@/drizzle/schema";
+import { embedQuery } from "@/lib/clip";
 import { db } from "@/lib/db";
 import type { ChannelPage, ChannelVideo } from "@/lib/channel";
 import type { Video, VideoCategory } from "@/lib/videos";
@@ -140,6 +141,18 @@ export async function getHomeVideos() {
   return rows.map(toVideo);
 }
 
+
+export async function searchVideos(query: string) {
+  const trimmed = query.trim().slice(0, 200);
+  if (!trimmed) return [];
+  const embedding = await embedQuery(trimmed);
+  const literal = `[${embedding.join(",")}]`;
+  const rows = await videoQuery()
+    .where(isNotNull(videos.thumbnailEmbedding))
+    .orderBy(sql`${videos.thumbnailEmbedding} <=> ${literal}::vector`)
+    .limit(12);
+  return rows.map(toVideo);
+}
 export async function getWatchVideo(id: string | undefined) {
   const rows = await videoQuery()
     .where(eq(videos.showOnHome, true))
@@ -202,7 +215,7 @@ export async function getChannelPage(handle: string) {
     kind: "designed",
     name: channel.name,
     handle: channel.slug,
-    subscribersLabel: `${channel.subscribers} · ${channel.videoCount} videos`,
+    subscribersLabel: `${channel.subscribers} -+ ${channel.videoCount} videos`,
     bio: channel.bio,
     bioMore: channel.bioMore,
     bannerImage: channel.bannerImage ?? "",

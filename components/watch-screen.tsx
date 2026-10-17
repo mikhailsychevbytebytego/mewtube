@@ -43,9 +43,8 @@ export function WatchScreen({
 }) {
   const router = useRouter();
   const hasDetails = (video.paragraphs?.length ?? 0) > 0;
-  const [query, setQuery] = useState("");
-  const [chip, setChip] = useState("All");
   const chips = ["All", `From ${video.channel}`, "Kittens", "Funny Cats", "Related"];
+  const [chip, setChip] = useState("All");
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
@@ -56,20 +55,16 @@ export function WatchScreen({
   const [added, setAdded] = useState<WatchComment[]>([]);
 
   const related = useMemo(() => {
-    const needle = query.trim().toLowerCase();
     return relatedVideos.filter((item) => {
-      const matchesQuery =
-        needle.length === 0 ||
-        `${item.title} ${item.channel}`.toLowerCase().includes(needle);
-      const matchesChip =
+      return (
         chip === "All" ||
         chip === "Related" ||
         (chip === `From ${video.channel}` && item.channel === video.channel) ||
         (chip === "Kittens" && item.categories.includes("Kittens")) ||
-        (chip === "Funny Cats" && item.categories.includes("Funny Cats"));
-      return matchesQuery && matchesChip;
+        (chip === "Funny Cats" && item.categories.includes("Funny Cats"))
+      );
     });
-  }, [chip, query, relatedVideos, video.channel]);
+  }, [chip, relatedVideos, video.channel]);
 
   const pending = added.filter(
     (comment) => !storedComments.some((stored) => stored.id === comment.id),
@@ -111,8 +106,6 @@ export function WatchScreen({
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-background text-ink">
       <SiteHeader
-        query={query}
-        onQueryChange={setQuery}
         onMenu={() => router.push("/")}
         onHome={() => router.push("/")}
       />
