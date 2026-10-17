@@ -1,4 +1,4 @@
-import { asc, eq, isNotNull, sql } from "drizzle-orm";
+import { and, asc, eq, isNotNull, ne, sql } from "drizzle-orm";
 import { channels, comments, users, videos } from "@/drizzle/schema";
 import { embedQuery } from "@/lib/clip";
 import { db } from "@/lib/db";
@@ -141,7 +141,6 @@ export async function getHomeVideos() {
   return rows.map(toVideo);
 }
 
-
 export async function searchVideos(query: string) {
   const trimmed = query.trim().slice(0, 200);
   if (!trimmed) return [];
@@ -153,17 +152,39 @@ export async function searchVideos(query: string) {
     .limit(12);
   return rows.map(toVideo);
 }
-export async function getWatchVideo(id: string | undefined) {
+
+const videoIdPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function findWatchRow(id: string | undefined) {
+  if (id) {
+    const [bySlug] = await videoQuery().where(eq(videos.slug, id)).limit(1);
+    if (bySlug) return bySlug;
+    if (videoIdPattern.test(id)) {
+      const [byId] = await videoQuery().where(eq(videos.id, id)).limit(1);
+      if (byId) return byId;
+    }
+  }
+  const [piano] = await videoQuery().where(eq(videos.slug, "piano")).limit(1);
+  if (piano) return piano;
+  const [first] = await videoQuery().orderBy(asc(videos.homeOrder)).limit(1);
+  return first;
+}
+
+async function relatedByThumbnail(videoId: string) {
+  const distance = sql`${videos.thumbnailEmbedding} <=> (select source.thumbnail_embedding from public.videos as source where source.id = ${videoId}::uuid)`;
   const rows = await videoQuery()
-    .where(eq(videos.showOnHome, true))
-    .orderBy(asc(videos.relatedOrder));
-  const catalog = rows.map(toVideo);
-  const video =
-    catalog.find((item) => item.slug === id || item.id === id) ??
-    catalog.find((item) => item.slug === "piano") ??
-    catalog[0];
-  if (!video) return null;
-  const related = catalog.filter((item) => item.id !== video.id);
+    .where(and(ne(videos.id, videoId), isNotNull(videos.thumbnailEmbedding)))
+    .orderBy(distance)
+    .limit(20);
+  return rows.map(toVideo);
+}
+
+export async function getWatchVideo(id: string | undefined) {
+  const row = await findWatchRow(id);
+  if (!row) return null;
+  const video = toVideo(row);
+  const related = await relatedByThumbnail(video.id);
   const commentRows = await db
     .select({
       id: comments.id,
@@ -215,7 +236,7 @@ export async function getChannelPage(handle: string) {
     kind: "designed",
     name: channel.name,
     handle: channel.slug,
-    subscribersLabel: `${channel.subscribers} -+ ${channel.videoCount} videos`,
+    subscribersLabel: `${channel.subscribers} · ${channel.videoCount} videos`,
     bio: channel.bio,
     bioMore: channel.bioMore,
     bannerImage: channel.bannerImage ?? "",
