@@ -1,9 +1,11 @@
 import {
   boolean,
+  index,
   integer,
   pgTable,
   text,
   uuid,
+  vector,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -59,7 +61,13 @@ export const videos = pgTable("videos", {
   homeOrder: integer("home_order").notNull().default(0),
   relatedOrder: integer("related_order").notNull().default(0),
   sectionOrder: integer("section_order").notNull().default(0),
-});
+  thumbnailEmbedding: vector("thumbnail_embedding", { dimensions: 512 }),
+}, (table) => [
+  index("videos_thumbnail_embedding_hnsw").using(
+    "hnsw",
+    table.thumbnailEmbedding.op("vector_cosine_ops"),
+  ),
+]);
 
 export const comments = pgTable("comments", {
   id: uuid("id").primaryKey().defaultRandom(),
