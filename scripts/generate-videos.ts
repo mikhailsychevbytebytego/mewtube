@@ -1,12 +1,14 @@
-import { eq, sql } from "drizzle-orm";
+import { eq, isNull, sql } from "drizzle-orm";
 import { videos } from "../drizzle/schema";
 import { db } from "../lib/db";
+import { embedThumbnail } from "./clip";
 
 const model = "minimax/h3-max-turbo/image-to-video";
 
 type Row = {
   slug: string;
   title: string;
+  description: string | null;
   thumbnail: string;
   playbackUrl: string | null;
 };
@@ -128,11 +130,13 @@ async function makeVideo(row: Row) {
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
       console.log(`start ${row.slug}`);
-      const source = await falVideo(row.title, row.thumbnail);
+      const prompt = row.description ? `${row.title}. ${row.description}` : row.title;
+      const source = await falVideo(prompt, row.thumbnail);
       const playbackUrl = await uploadStream(row.title, source);
+      const thumbnailEmbedding = await embedThumbnail(row.thumbnail);
       await db
         .update(videos)
-        .set({ playbackUrl, duration: "0:15" })
+        .set({ playbackUrl, duration: "0:15", thumbnailEmbedding })
         .where(eq(videos.slug, row.slug));
       console.log(`ready ${row.slug}`);
       return;
@@ -162,30 +166,94 @@ async function mapPool(items: Row[], limit: number) {
   return failures;
 }
 
+async function ensureVectorColumn() {
+  await db.execute(sql`create extension if not exists vector with schema extensions`);
+  await db.execute(
+    sql`alter table public.videos add column if not exists thumbnail_embedding extensions.vector(512)`,
+  );
+}
+
+async function ensureVectorIndex() {
+  await db.execute(sql`
+    create index if not exists videos_thumbnail_embedding_hnsw
+    on public.videos
+    using hnsw (thumbnail_embedding extensions.vector_cosine_ops)
+  `);
+}
+
+async function backfillEmbeddings() {
+  const missing = await db
+    .select({ slug: videos.slug, thumbnail: videos.thumbnail })
+    .from(videos)
+    .where(isNull(videos.thumbnailEmbedding));
+  console.log(`Embedding ${missing.length} thumbnails.`);
+  for (const row of missing) {
+    if (!row.thumbnail.startsWith("https://")) {
+      throw new Error(`${row.slug} does not have a remote thumbnail.`);
+    }
+    const thumbnailEmbedding = await embedThumbnail(row.thumbnail);
+    await db.update(videos).set({ thumbnailEmbedding }).where(eq(videos.slug, row.slug));
+    console.log(`embedded ${row.slug}`);
+  }
+}
+
 async function main() {
   await db.execute(sql`alter table public.videos add column if not exists playback_url text`);
+  await ensureVectorColumn();
   const rows = await db
     .select({
       slug: videos.slug,
       title: videos.title,
+      description: videos.description,
       thumbnail: videos.thumbnail,
       playbackUrl: videos.playbackUrl,
     })
     .from(videos);
   const pending = rows.filter((row) => !row.playbackUrl);
   console.log(`Generating ${pending.length} of ${rows.length} videos.`);
-  if (pending.length === 0) {
-    process.exit(0);
+  if (pending.length > 0) {
+    const [first, ...rest] = pending;
+    await makeVideo(first);
+    const failures = await mapPool(rest, 2);
+    if (failures.length > 0) {
+      console.error(failures.join("\n"));
+      process.exit(1);
+    }
+    console.log("All videos are on Cloudflare Stream.");
   }
 
-  const [first, ...rest] = pending;
-  await makeVideo(first);
-  const failures = await mapPool(rest, 2);
-  if (failures.length > 0) {
-    console.error(failures.join("\n"));
+  await backfillEmbeddings();
+  await ensureVectorIndex();
+  const [check] = await db.execute<{
+    vector_version: string;
+    videos: string;
+    embedded: string;
+    hnsw_indexes: string;
+    rls: boolean;
+  }>(sql`
+    select
+      (select extversion from pg_extension where extname = 'vector') as vector_version,
+      (select count(*) from public.videos) as videos,
+      (select count(*) from public.videos where thumbnail_embedding is not null) as embedded,
+      (
+        select count(*)
+        from pg_class index_class
+        join pg_index on pg_index.indexrelid = index_class.oid
+        where index_class.relname = 'videos_thumbnail_embedding_hnsw'
+      ) as hnsw_indexes,
+      (
+        select relrowsecurity
+        from pg_class
+        join pg_namespace on pg_namespace.oid = pg_class.relnamespace
+        where pg_namespace.nspname = 'public' and pg_class.relname = 'videos'
+      ) as rls
+  `);
+  console.log(
+    `vector ${check.vector_version}; embeddings ${check.embedded}/${check.videos}; hnsw ${check.hnsw_indexes}; rls ${check.rls}`,
+  );
+  if (check.embedded !== check.videos || Number(check.hnsw_indexes) !== 1 || !check.rls) {
     process.exit(1);
   }
-  console.log("All videos are on Cloudflare Stream.");
   process.exit(0);
 }
 
