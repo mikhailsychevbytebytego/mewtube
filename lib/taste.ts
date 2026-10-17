@@ -214,6 +214,43 @@ export function dimensionsForVideo(video: {
   );
 }
 
+export function topTastes(scores: Record<string, number>, limit = 3) {
+  return Object.entries(scores)
+    .filter(([, score]) => score > 0)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, limit)
+    .map(([id, score]) => ({
+      id,
+      label: byId.get(id)?.label ?? id,
+      score,
+    }));
+}
+
+export function recommendByTaste<
+  T extends {
+    slug?: string;
+    title: string;
+    hashtags?: string[];
+    categories?: string[];
+  },
+>(videos: readonly T[], scores: Record<string, number>, limit = 8) {
+  const tastes = topTastes(scores, 3);
+  if (tastes.length === 0) return { tastes, videos: [] as T[] };
+  const weights = new Map(tastes.map((taste) => [taste.id, taste.score]));
+  const ranked = videos
+    .map((video) => ({
+      video,
+      overlap: dimensionsForVideo(video).reduce(
+        (sum, dimension) => sum + (weights.get(dimension.id) ?? 0),
+        0,
+      ),
+    }))
+    .filter((item) => item.overlap > 0)
+    .sort(
+      (a, b) => b.overlap - a.overlap || a.video.title.localeCompare(b.video.title),
+    );
+  return { tastes, videos: ranked.slice(0, limit).map((item) => item.video) };
+}
 
 export function applyTasteScores(
   scores: Record<string, number>,

@@ -1,12 +1,24 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronRightIcon } from "@/components/icons";
 import { GuideSidebar } from "@/components/guide-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import { VideoCard } from "@/components/video-card";
+import { recommendByTaste } from "@/lib/taste";
+import {
+  getServerTasteProfile,
+  getTasteProfile,
+  subscribeTaste,
+} from "@/lib/taste-profile";
 import { categories, type CategoryFilter, type Video } from "@/lib/videos";
+
+function formatTasteList(labels: string[]) {
+  if (labels.length <= 1) return labels[0] ?? "";
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
+  return `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
+}
 
 export function HomeShell({
   videos,
@@ -20,6 +32,7 @@ export function HomeShell({
   error?: string;
 }) {
   const router = useRouter();
+  const profile = useSyncExternalStore(subscribeTaste, getTasteProfile, getServerTasteProfile);
   const [category, setCategory] = useState<CategoryFilter>("All");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -64,8 +77,22 @@ export function HomeShell({
     setMobileOpen((open) => !open);
   }
 
+  const recommendation = useMemo(
+    () => recommendByTaste(videos, profile.scores),
+    [profile.scores, videos],
+  );
+  const tasteLabels = recommendation.tastes.map((taste) => taste.label);
+  const recommended =
+    query || pending || error
+      ? []
+      : recommendation.videos.filter(
+          (video) => category === "All" || video.categories.includes(category),
+        );
+  const recommendedIds = new Set(recommended.map((video) => video.id));
   const visibleVideos = videos.filter(
-    (video) => category === "All" || video.categories.includes(category),
+    (video) =>
+      (category === "All" || video.categories.includes(category)) &&
+      !recommendedIds.has(video.id),
   );
 
   return (
@@ -144,7 +171,7 @@ export function HomeShell({
             <div className="px-6 py-16 text-center">
               <p className="text-lg font-medium">{error}</p>
             </div>
-          ) : visibleVideos.length === 0 ? (
+          ) : recommended.length === 0 && visibleVideos.length === 0 ? (
             <div className="px-6 py-16 text-center">
               <p className="text-lg font-medium">No videos found</p>
               <p className="mt-1 text-sm text-muted">
@@ -152,11 +179,40 @@ export function HomeShell({
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-x-4 gap-y-8 px-4 pb-10 sm:grid-cols-2 sm:px-6 lg:grid-cols-3 xl:grid-cols-4">
-              {visibleVideos.map((video) => (
-                <VideoCard key={video.id} video={video} />
-              ))}
-            </div>
+            <>
+              {recommended.length > 0 ? (
+                <section aria-label="Recommended" className="px-4 pt-2 sm:px-6">
+                  <h2 className="text-lg font-medium">Recommended</h2>
+                  <p className="mt-1 text-sm text-muted">
+                    Based on {formatTasteList(tasteLabels)}
+                  </p>
+                  <div className="mt-4 grid grid-cols-1 gap-x-4 gap-y-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {recommended.map((video) => (
+                      <VideoCard key={video.id} video={video} />
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+              {visibleVideos.length > 0 ? (
+                <section
+                  aria-label="More videos"
+                  className={recommended.length > 0 ? "mt-10" : undefined}
+                >
+                  {recommended.length > 0 ? (
+                    <h2 className="px-4 text-lg font-medium sm:px-6">More videos</h2>
+                  ) : null}
+                  <div
+                    className={`grid grid-cols-1 gap-x-4 gap-y-8 px-4 pb-10 sm:grid-cols-2 sm:px-6 lg:grid-cols-3 xl:grid-cols-4 ${
+                      recommended.length > 0 ? "mt-4" : ""
+                    }`}
+                  >
+                    {visibleVideos.map((video) => (
+                      <VideoCard key={video.id} video={video} />
+                    ))}
+                  </div>
+                </section>
+              ) : null}
+            </>
           )}
         </main>
       </div>
