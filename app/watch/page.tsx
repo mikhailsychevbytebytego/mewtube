@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { WatchScreen } from "@/components/watch-screen";
 import { getWatchVideo } from "@/lib/catalog";
+import { isSubscribed } from "@/lib/subscriptions";
 
 type WatchPageProps = {
   searchParams: Promise<{ v?: string | string[] }>;
@@ -30,12 +31,16 @@ export async function generateMetadata({
 export default async function WatchPage({ searchParams }: WatchPageProps) {
   const data = await getWatchVideo(videoId((await searchParams).v));
   if (!data) notFound();
+  const subscribed = data.video.channelHandle
+    ? await isSubscribed(data.video.channelHandle)
+    : false;
   return (
     <WatchScreen
       key={data.video.slug ?? data.video.id}
       video={data.video}
       relatedVideos={data.related}
       comments={data.comments}
+      subscribed={subscribed}
     />
   );
 }

@@ -32,6 +32,10 @@ function setDebugOpen(open: boolean) {
   for (const listener of debugListeners) listener();
 }
 
+export function toggleTasteDebug() {
+  setDebugOpen(!debugOpen);
+}
+
 function formatScore(score: number) {
   return score.toFixed(2);
 }
@@ -58,24 +62,15 @@ export function TasteDebug() {
   const maxScore = rows.reduce((max, row) => Math.max(max, row.score), 0);
   const boosted = new Set(profile.last?.boosted ?? []);
 
+  if (!open) return null;
+
   return (
-    <>
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls="taste-debug"
-        onClick={() => setDebugOpen(!open)}
-        className="rounded-full px-3 py-2 text-sm font-medium hover:bg-chip"
-      >
-        Taste
-      </button>
-      {open ? (
-        <aside
-          id="taste-debug"
-          role="dialog"
-          aria-label="Taste debug"
-          className="fixed inset-x-0 bottom-0 top-14 z-50 overflow-y-auto border-t border-line bg-background p-4 text-ink shadow-xl sm:inset-y-0 sm:left-auto sm:right-0 sm:top-0 sm:w-[420px] sm:border-l sm:border-t-0"
-        >
+    <aside
+      id="taste-debug"
+      role="dialog"
+      aria-label="Taste debug"
+      className="fixed inset-x-0 bottom-0 top-14 z-50 overflow-y-auto border-t border-line bg-background p-4 text-ink shadow-xl sm:inset-y-0 sm:left-auto sm:right-0 sm:top-0 sm:w-[420px] sm:border-l sm:border-t-0"
+    >
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold">What CatTube knows</h2>
@@ -153,8 +148,6 @@ export function TasteDebug() {
               );
             })}
           </ol>
-        </aside>
-      ) : null}
-    </>
+    </aside>
   );
 }

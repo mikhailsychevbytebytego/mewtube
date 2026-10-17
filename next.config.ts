@@ -16,6 +16,21 @@ const nextConfig: NextConfig = {
         hostname: "imagedelivery.net",
         pathname: "/**",
       },
+      {
+        protocol: "https",
+        hostname: "**.cloudflarestream.com",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "videodelivery.net",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "**.videodelivery.net",
+        pathname: "/**",
+      },
     ],
   },
   async rewrites() {

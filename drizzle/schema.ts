@@ -3,10 +3,13 @@ import {
   index,
   integer,
   pgTable,
+  primaryKey,
   text,
+  timestamp,
   uuid,
   vector,
 } from "drizzle-orm/pg-core";
+import { user } from "./auth-schema";
 
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -19,6 +22,9 @@ export const users = pgTable("users", {
 export const channels = pgTable("channels", {
   id: uuid("id").primaryKey().defaultRandom(),
   slug: text("slug").notNull().unique(),
+  ownerId: text("owner_id")
+    .unique()
+    .references(() => user.id, { onDelete: "set null" }),
   name: text("name").notNull(),
   subscribers: text("subscribers"),
   videoCount: integer("video_count"),
@@ -32,12 +38,26 @@ export const channels = pgTable("channels", {
   hasPage: boolean("has_page").notNull().default(false),
 });
 
+export const shelves = pgTable(
+  "shelves",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    channelId: uuid("channel_id")
+      .notNull()
+      .references(() => channels.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+  },
+  (table) => [index("shelves_channel_id_idx").on(table.channelId)],
+);
+
 export const videos = pgTable("videos", {
   id: uuid("id").primaryKey().defaultRandom(),
   slug: text("slug").notNull().unique(),
   channelId: uuid("channel_id")
     .notNull()
     .references(() => channels.id),
+  shelfId: uuid("shelf_id").references(() => shelves.id, { onDelete: "set null" }),
   title: text("title").notNull(),
   subtitle: text("subtitle"),
   description: text("description"),
@@ -67,7 +87,25 @@ export const videos = pgTable("videos", {
     "hnsw",
     table.thumbnailEmbedding.op("vector_cosine_ops"),
   ),
+  index("videos_shelf_id_idx").on(table.shelfId),
 ]);
+
+export const subscriptions = pgTable(
+  "subscriptions",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    channelId: uuid("channel_id")
+      .notNull()
+      .references(() => channels.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userId, table.channelId] }),
+    index("subscriptions_channel_id_idx").on(table.channelId),
+  ],
+);
 
 export const comments = pgTable("comments", {
   id: uuid("id").primaryKey().defaultRandom(),

@@ -1,24 +1,25 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useEffect, useState, type ReactNode } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { CatFace } from "@/components/cat-face";
 import {
-  BulbIcon,
   ChevronIcon,
   ClockIcon,
-  FlameIcon,
-  GamepadIcon,
   HomeIcon,
-  LiveIcon,
   MeowmentsIcon,
-  MusicIcon,
-  NewsIcon,
+  PawIcon,
   PlaylistIcon,
   PlayMark,
-  ShirtIcon,
   ShortsIcon,
   SubscriptionsIcon,
   ThumbIcon,
-  TrophyIcon,
-  VrIcon,
 } from "@/components/icons";
+import { subscriptionsChanged } from "@/components/use-subscribe";
+import { listSubscriptions } from "@/lib/subscribe-actions";
+import { channelHref } from "@/lib/videos";
+import type { SubscribedChannel } from "@/lib/subscriptions";
 
 function GuideButton({
   label,
@@ -54,6 +55,7 @@ export function GuideSidebar({
   onHome,
   onCloseMobile,
   homeCurrent = true,
+  premiumCurrent = false,
   embedded = false,
 }: {
   mobileOpen: boolean;
@@ -63,8 +65,33 @@ export function GuideSidebar({
   onHome: () => void;
   onCloseMobile: () => void;
   homeCurrent?: boolean;
+  premiumCurrent?: boolean;
   embedded?: boolean;
 }) {
+  const pathname = usePathname();
+  const subscriptionsCurrent = pathname === "/subscriptions";
+  const studioCurrent = pathname === "/studio";
+  const [channels, setChannels] = useState<SubscribedChannel[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    function load() {
+      listSubscriptions()
+        .then((rows) => {
+          if (!cancelled) setChannels(rows);
+        })
+        .catch(() => {
+          if (!cancelled) setChannels([]);
+        });
+    }
+    load();
+    window.addEventListener(subscriptionsChanged, load);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(subscriptionsChanged, load);
+    };
+  }, []);
+
   return (
     <aside
       aria-label="Guide"
@@ -87,7 +114,17 @@ export function GuideSidebar({
           }}
         />
         <GuideButton label="Shorts" icon={<ShortsIcon />} />
-        <GuideButton label="Subscriptions" icon={<SubscriptionsIcon />} />
+        <Link
+          href="/subscriptions"
+          onClick={onCloseMobile}
+          aria-current={subscriptionsCurrent ? "page" : undefined}
+          className={`flex h-10 w-full items-center gap-6 rounded-lg px-3 text-left text-sm ${
+            subscriptionsCurrent ? "bg-chip font-medium" : "hover:bg-chip"
+          }`}
+        >
+          <SubscriptionsIcon />
+          <span className="truncate">Subscriptions</span>
+        </Link>
       </nav>
 
       <div className="mt-3 border-t border-line pt-3">
@@ -102,6 +139,17 @@ export function GuideSidebar({
         </button>
         {youOpen ? (
           <div className="mt-1 flex flex-col gap-0.5">
+            <Link
+              href="/studio"
+              onClick={onCloseMobile}
+              aria-current={studioCurrent ? "page" : undefined}
+              className={`flex h-10 w-full items-center gap-6 rounded-lg px-3 text-left text-sm ${
+                studioCurrent ? "bg-chip font-medium" : "hover:bg-chip"
+              }`}
+            >
+              <PawIcon className="size-6" />
+              <span className="truncate">Your channel</span>
+            </Link>
             <GuideButton label="Your Meowments" icon={<MeowmentsIcon />} />
             <GuideButton label="Watch Later" icon={<ClockIcon />} />
             <GuideButton label="Liked Kitties" icon={<ThumbIcon />} />
@@ -110,26 +158,36 @@ export function GuideSidebar({
         ) : null}
       </div>
 
-      <div className="mt-3 border-t border-line pt-3">
-        <p className="px-3 py-2 text-base font-semibold">Explore</p>
-        <div className="flex flex-col gap-0.5">
-          <GuideButton label="Trending Meows" icon={<FlameIcon />} />
-          <GuideButton label="Music for Cats" icon={<MusicIcon />} />
-          <GuideButton label="Live Meows" icon={<LiveIcon />} />
-          <GuideButton label="Gaming Cats" icon={<GamepadIcon />} />
-          <GuideButton label="News from the Litter Box" icon={<NewsIcon />} />
-          <GuideButton label="Sports Cats" icon={<TrophyIcon />} />
-          <GuideButton label="Learning with Cats" icon={<BulbIcon />} />
-          <GuideButton label="Fashionable Felines" icon={<ShirtIcon />} />
-          <GuideButton label="360° Cat Videos" icon={<VrIcon />} />
+      {channels.length > 0 ? (
+        <div className="mt-3 border-t border-line pt-3">
+          <p className="px-3 py-2 text-base font-semibold">Subscriptions</p>
+          <nav className="flex flex-col gap-0.5" aria-label="Subscribed channels">
+            {channels.map((channel) => (
+              <Link
+                key={channel.slug}
+                href={channelHref(channel.slug)}
+                onClick={onCloseMobile}
+                className="flex h-10 items-center gap-6 rounded-lg px-3 text-sm hover:bg-chip"
+              >
+                <span className="grid size-6 shrink-0 place-items-center overflow-hidden rounded-full bg-[#f3f3f3]">
+                  <CatFace color={channel.avatar} innerEar={channel.innerEar} />
+                </span>
+                <span className="truncate">{channel.name}</span>
+              </Link>
+            ))}
+          </nav>
         </div>
-      </div>
+      ) : null}
 
       <div className="mt-3 border-t border-line pt-3">
         <p className="px-3 py-2 text-base font-semibold">More from CatTube</p>
-        <button
-          type="button"
-          className="flex w-full items-start gap-4 rounded-lg px-3 py-2 text-left hover:bg-chip"
+        <Link
+          href="/premium"
+          onClick={onCloseMobile}
+          aria-current={premiumCurrent ? "page" : undefined}
+          className={`flex w-full items-start gap-4 rounded-lg px-3 py-2 text-left hover:bg-chip ${
+            premiumCurrent ? "bg-chip" : ""
+          }`}
         >
           <span className="mt-0.5">
             <PlayMark className="h-4 w-6" />
@@ -140,7 +198,7 @@ export function GuideSidebar({
               More cats. Zero ads. (Maybe.)
             </span>
           </span>
-        </button>
+        </Link>
       </div>
     </aside>
   );

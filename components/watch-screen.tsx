@@ -4,7 +4,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { startTransition, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { CatConfetti } from "@/components/cat-confetti";
 import { CatFace } from "@/components/cat-face";
+import { LoginDialog } from "@/components/login-dialog";
+import { useSubscribe } from "@/components/use-subscribe";
 import {
   CheckIcon,
   ChevronIcon,
@@ -38,10 +41,12 @@ export function WatchScreen({
   video,
   relatedVideos,
   comments: storedComments,
+  subscribed: initiallySubscribed = false,
 }: {
   video: Video;
   relatedVideos: Video[];
   comments: WatchComment[];
+  subscribed?: boolean;
 }) {
   const router = useRouter();
 
@@ -64,7 +69,8 @@ export function WatchScreen({
   const [chip, setChip] = useState("All");
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
-  const [subscribed, setSubscribed] = useState(false);
+  const { subscribed, confetti, loginOpen, setLoginOpen, subscribe, finishLogin } =
+    useSubscribe(video.channelHandle, initiallySubscribed);
   const [saved, setSaved] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [sort, setSort] = useState<"top" | "newest">("top");
@@ -126,10 +132,17 @@ export function WatchScreen({
         onMenu={() => router.push("/")}
         onHome={() => router.push("/")}
       />
+      <CatConfetti burst={confetti} />
+      <LoginDialog
+        open={loginOpen}
+        onClose={() => setLoginOpen(false)}
+        onSuccess={finishLogin}
+      />
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-[1750px] flex-col gap-6 px-4 py-4 lg:flex-row lg:px-6">
           <div className="min-w-0 flex-1">
-            <div className="relative aspect-video overflow-hidden rounded-xl bg-black">
+            {/* Clips are 1260×720 (7:4). A 16:9 frame leaves thin side bars. */}
+            <div className="relative aspect-[7/4] overflow-hidden rounded-xl bg-black">
               {playerSrc ? (
                 <iframe
                   src={playerSrc}
@@ -173,7 +186,7 @@ export function WatchScreen({
               <button
                 type="button"
                 aria-pressed={subscribed}
-                onClick={() => setSubscribed((value) => !value)}
+                onClick={subscribe}
                 className={`h-9 rounded-full px-4 text-sm font-medium ${
                   subscribed ? "bg-chip text-ink" : "bg-ink text-background"
                 }`}
