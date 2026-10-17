@@ -179,7 +179,7 @@ export function AdminScreen({
     (type === "comments" && comment);
 
   return (
-    <div className="flex h-dvh flex-col bg-background text-ink">
+    <div className="flex h-full flex-col overflow-hidden bg-background text-ink">
       <header className="flex h-16 shrink-0 items-center gap-4 border-b border-line px-4 sm:px-6">
         <Link href="/" className="text-lg font-medium">
           CatTube

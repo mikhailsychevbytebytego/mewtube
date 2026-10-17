@@ -23,7 +23,7 @@ export function ChannelLibrary({
   const router = useRouter();
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-background text-ink">
+    <div className="flex h-full flex-col overflow-hidden bg-background text-ink">
       <SiteHeader
         onMenu={() => router.push("/")}
         onHome={() => router.push("/")}

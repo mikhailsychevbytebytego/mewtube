@@ -161,7 +161,7 @@ export function ChannelScreen({ channel }: { channel: ChannelPage }) {
   }
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-background text-ink">
+    <div className="flex h-full overflow-hidden bg-background text-ink">
       {mobileOpen ? (
         <button
           type="button"
