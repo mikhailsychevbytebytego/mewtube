@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { startTransition, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { startTransition, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { CatFace } from "@/components/cat-face";
 import {
@@ -12,6 +12,8 @@ import {
 } from "@/components/icons";
 import { SiteHeader } from "@/components/site-header";
 import { postComment } from "@/lib/post-comment";
+import { TASTE_WATCH_STEP_MS } from "@/lib/taste";
+import { recordTasteSignal } from "@/lib/taste-profile";
 import { channelHref, watchHref, type Video } from "@/lib/videos";
 import type { WatchComment } from "@/lib/watch";
 
@@ -42,6 +44,21 @@ export function WatchScreen({
   comments: WatchComment[];
 }) {
   const router = useRouter();
+
+  useEffect(() => {
+    const subject = {
+      slug: video.slug ?? video.id,
+      title: video.title,
+      hashtags: video.hashtags,
+      categories: video.categories,
+    };
+    recordTasteSignal(subject, "click");
+    let timer = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      recordTasteSignal(subject, "watch");
+    }, TASTE_WATCH_STEP_MS);
+    return () => window.clearInterval(timer);
+  }, [video.categories, video.hashtags, video.id, video.slug, video.title]);
   const hasDetails = (video.paragraphs?.length ?? 0) > 0;
   const chips = ["All", `From ${video.channel}`, "Kittens", "Funny Cats", "Related"];
   const [chip, setChip] = useState("All");

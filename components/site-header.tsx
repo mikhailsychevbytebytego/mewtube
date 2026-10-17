@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BellIcon, MenuIcon, MicIcon, PawIcon, PlayMark, SearchIcon } from "@/components/icons";
 import { CatFace } from "@/components/cat-face";
+import { TasteDebug } from "@/components/taste-debug";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { authClient } from "@/lib/auth-client";
 import { searchHref } from "@/lib/videos";
@@ -126,6 +127,7 @@ export function SiteHeader({
               Admin
             </Link>
           ) : null}
+          <TasteDebug />
           <ThemeToggle />
           <button
             type="button"
