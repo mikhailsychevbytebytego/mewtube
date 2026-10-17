@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { GuideSidebar } from "@/components/guide-sidebar";
 import {
@@ -17,7 +17,7 @@ import {
 } from "@/components/icons";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { channelTabs, type ChannelPage, type ChannelTab, type ChannelVideo } from "@/lib/channel";
-import { channelHref } from "@/lib/videos";
+import { channelHref, searchHref } from "@/lib/videos";
 
 function AssetIcon({
   src,
@@ -123,10 +123,6 @@ function ShelfCard({
   );
 }
 
-function matchesQuery(text: string, query: string) {
-  return query.length === 0 || text.toLowerCase().includes(query);
-}
-
 export function ChannelScreen({ channel }: { channel: ChannelPage }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -137,30 +133,10 @@ export function ChannelScreen({ channel }: { channel: ChannelPage }) {
   const [subscribed, setSubscribed] = useState(false);
   const [bioOpen, setBioOpen] = useState(false);
 
-  const needle = query.trim().toLowerCase();
-  const visibleForYou = useMemo(
-    () =>
-      channel.forYou.filter((video) =>
-        matchesQuery(`${video.title} ${video.subtitle ?? ""}`, needle),
-      ),
-    [channel.forYou, needle],
-  );
-  const visibleShelf = useMemo(
-    () =>
-      channel.shelf.filter((video) =>
-        matchesQuery(`${video.title} ${video.subtitle ?? ""}`, needle),
-      ),
-    [channel.shelf, needle],
-  );
-  const featuredVisible = matchesQuery(
-    `${channel.featured.title} ${channel.featured.description}`,
-    needle,
-  );
-  const nothingMatches =
-    needle.length > 0 &&
-    !featuredVisible &&
-    visibleForYou.length === 0 &&
-    visibleShelf.length === 0;
+  function submitSearch(event: FormEvent) {
+    event.preventDefault();
+    router.push(searchHref(query));
+  }
 
   function goHome() {
     setMobileOpen(false);
@@ -245,7 +221,7 @@ export function ChannelScreen({ channel }: { channel: ChannelPage }) {
           <form
             role="search"
             className="flex h-[41px] min-w-0 flex-1"
-            onSubmit={(event) => event.preventDefault()}
+            onSubmit={submitSearch}
           >
             <label htmlFor="channel-search" className="sr-only">
               Search
@@ -442,14 +418,8 @@ export function ChannelScreen({ channel }: { channel: ChannelPage }) {
 
           {tab === "Home" || tab === "Videos" ? (
             <div className="pt-2">
-              {nothingMatches ? (
-                <div className="px-2 py-16 text-center">
-                  <p className="text-lg font-medium">No videos found</p>
-                  <p className="mt-1 text-sm text-muted">Try a different search.</p>
-                </div>
-              ) : (
-                <>
-                  {tab === "Home" && featuredVisible ? (
+              <>
+                  {tab === "Home" ? (
                     <div className="flex flex-col gap-4 py-2.5 sm:flex-row">
                       <Link
                         href={`/watch?v=${channel.featured.watchId}`}
@@ -493,11 +463,11 @@ export function ChannelScreen({ channel }: { channel: ChannelPage }) {
                     </div>
                   ) : null}
 
-                  {visibleForYou.length > 0 ? (
+                  {channel.forYou.length > 0 ? (
                     <section className="pt-2">
                       <h2 className="py-1 text-xl font-bold">For You</h2>
                       <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
-                        {visibleForYou.map((video) => (
+                        {channel.forYou.map((video) => (
                           <ShelfCard
                             key={video.id}
                             video={video}
@@ -511,7 +481,7 @@ export function ChannelScreen({ channel }: { channel: ChannelPage }) {
                     </section>
                   ) : null}
 
-                  {visibleShelf.length > 0 ? (
+                  {channel.shelf.length > 0 ? (
                     <section className="mt-3 border-t border-line pt-2">
                       <div className="flex h-[34px] items-center gap-3">
                         <h2 className="text-xl font-bold">Videos</h2>
@@ -527,7 +497,7 @@ export function ChannelScreen({ channel }: { channel: ChannelPage }) {
                         </Link>
                       </div>
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
-                        {visibleShelf.map((video) => (
+                        {channel.shelf.map((video) => (
                           <ShelfCard
                             key={video.id}
                             video={video}
@@ -541,7 +511,6 @@ export function ChannelScreen({ channel }: { channel: ChannelPage }) {
                     </section>
                   ) : null}
                 </>
-              )}
             </div>
           ) : (
             <div className="px-2 py-16 text-center">

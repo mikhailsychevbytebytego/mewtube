@@ -23,6 +23,11 @@ export function channelHref(handle: string | undefined) {
   return handle ? `/@${handle}` : "/";
 }
 
+export function searchHref(query: string) {
+  const trimmed = query.trim();
+  return trimmed ? `/?q=${encodeURIComponent(trimmed)}` : "/";
+}
+
 export type Video = {
   id: string;
   slug?: string;
