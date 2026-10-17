@@ -42,6 +42,12 @@
   --font-script: var(--font-caveat), "Segoe Script", cursive;
 }
 
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

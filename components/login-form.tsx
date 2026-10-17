@@ -48,7 +48,7 @@ export function LoginForm({
   }
 
   return (
-    <main className="grid min-h-full place-items-center bg-background px-4 py-10 text-ink">
+    <main className="grid h-full place-items-center overflow-y-auto bg-background px-4 py-10 text-ink">
       <div className="w-full max-w-[420px]">
         <Link href="/" className="mb-8 flex items-center justify-center gap-2">
           <PlayMark />

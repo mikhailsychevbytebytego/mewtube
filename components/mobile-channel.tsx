@@ -140,7 +140,7 @@ export function MobileChannel({
   const [searchOpen, setSearchOpen] = useState(false);
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-background text-ink">
+    <div className="flex h-full flex-col overflow-hidden bg-background text-ink">
       {mobileOpen ? (
         <button
           type="button"
