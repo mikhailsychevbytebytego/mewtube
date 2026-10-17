@@ -13,6 +13,7 @@ function handleFromName(name: string) {
 
 async function main() {
 await db.execute(sql`
+  drop table if exists public.subscriptions;
   drop table if exists public.comments;
   drop table if exists public.videos;
   drop table if exists public.channels;
@@ -84,6 +85,20 @@ await db.execute(sql`
   alter table public.channels enable row level security;
   alter table public.videos enable row level security;
   alter table public.comments enable row level security;
+
+  do $$
+  begin
+    if to_regclass('public.user') is not null then
+      create table if not exists public.subscriptions (
+        user_id text not null references "user"(id) on delete cascade,
+        channel_id uuid not null references public.channels(id) on delete cascade,
+        created_at timestamp not null default now(),
+        primary key (user_id, channel_id)
+      );
+      create index if not exists subscriptions_channel_id_idx on public.subscriptions (channel_id);
+      alter table public.subscriptions enable row level security;
+    end if;
+  end $$;
 `);
 
 const { users, channels, videos, comments } = await import("../drizzle/schema");

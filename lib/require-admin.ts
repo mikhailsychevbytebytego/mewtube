@@ -2,20 +2,26 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 
-async function currentSession() {
+export async function getCurrentSession() {
   return auth.api.getSession({
     headers: await headers(),
   });
 }
 
+export async function requireUser(nextPath = "/studio") {
+  const session = await getCurrentSession();
+  if (!session) redirect(`/login?next=${encodeURIComponent(nextPath)}`);
+  return session;
+}
+
 export async function adminSession() {
-  const session = await currentSession();
+  const session = await getCurrentSession();
   if (!session || session.user.admin !== true) return null;
   return session;
 }
 
 export async function requireAdmin() {
-  const session = await currentSession();
+  const session = await getCurrentSession();
 
   if (!session) {
     redirect("/login?next=/admin");

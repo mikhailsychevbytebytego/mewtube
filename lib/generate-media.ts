@@ -1,5 +1,5 @@
-import { eq, sql } from "drizzle-orm";
-import { channels, videos } from "@/drizzle/schema";
+import { and, desc, eq, sql } from "drizzle-orm";
+import { channels, shelves, videos } from "@/drizzle/schema";
 import { db } from "@/lib/db";
 
 const imageModel = "openai/gpt-image-2";
@@ -88,12 +88,23 @@ export async function createThumbnail(title: string) {
   return uploadImage(source);
 }
 
-async function uploadImage(sourceUrl: string) {
+async function imageVariant(response: Response) {
+  const payload = (await response.json()) as {
+    success?: boolean;
+    errors?: { message?: string }[];
+    result?: { variants?: string[] };
+  };
+  const variant =
+    payload.result?.variants?.find((item) => item.endsWith("/public")) ??
+    payload.result?.variants?.[0];
+  if (!response.ok || !payload.success || !variant) {
+    throw new Error(payload.errors?.[0]?.message || "Could not store the image.");
+  }
+  return variant;
+}
+
+async function postImage(form: FormData) {
   const { account, token } = cloudflareAuth();
-  const id = `thumb-${crypto.randomUUID()}`;
-  const form = new FormData();
-  form.set("url", sourceUrl);
-  form.set("id", id);
   const response = await fetch(
     `https://api.cloudflare.com/client/v4/accounts/${account}/images/v1`,
     {
@@ -102,16 +113,46 @@ async function uploadImage(sourceUrl: string) {
       body: form,
     },
   );
-  const payload = (await response.json()) as {
-    success?: boolean;
-    errors?: { message?: string }[];
-    result?: { variants?: string[] };
-  };
-  const variant = payload.result?.variants?.find((item) => item.endsWith("/public")) ?? payload.result?.variants?.[0];
-  if (!response.ok || !payload.success || !variant) {
-    throw new Error(payload.errors?.[0]?.message || "Could not store the thumbnail.");
-  }
-  return variant;
+  return imageVariant(response);
+}
+
+async function uploadImage(sourceUrl: string) {
+  const form = new FormData();
+  form.set("url", sourceUrl);
+  form.set("id", `thumb-${crypto.randomUUID()}`);
+  return postImage(form);
+}
+
+export async function uploadImageFile(file: Blob) {
+  const form = new FormData();
+  form.set("file", file);
+  form.set("id", `img-${crypto.randomUUID()}`);
+  return postImage(form);
+}
+
+export function bannerPrompt(prompt: string) {
+  return [
+    "Wide photorealistic channel banner of real cats.",
+    `Scene: ${prompt}.`,
+    "Cinematic lighting, one clear scene, no text, no letters, no logo, no watermark.",
+  ].join(" ");
+}
+
+export async function createBanner(prompt: string) {
+  const result = await falResult<{ images?: { url?: string }[] }>(
+    imageModel,
+    {
+      prompt: bannerPrompt(prompt),
+      image_size: { width: 1536, height: 1024 },
+      quality: "low",
+      num_images: 1,
+      output_format: "jpeg",
+    },
+    180_000,
+  );
+  const source = result.images?.[0]?.url;
+  if (!source) throw new Error("No banner was returned.");
+  return uploadImage(source);
 }
 
 function iframeUrl(uid: string, hls?: string) {
@@ -199,6 +240,8 @@ type StreamStatus = {
   result?: {
     uid?: string;
     readyToStream?: boolean;
+    duration?: number;
+    thumbnail?: string;
     playback?: { hls?: string };
     status?: { state?: string; errorReasonText?: string };
   };
@@ -250,7 +293,108 @@ export async function readCopiedVideo(uid: string) {
   const status = (await statusResponse.json()) as StreamStatus;
   if (!statusResponse.ok) throw new Error("The video status could not be checked.");
   const playbackUrl = playbackFrom({ ...status, result: { ...status.result, uid } });
-  return playbackUrl ? { pending: false as const, playbackUrl } : { pending: true as const };
+  if (!playbackUrl) return { pending: true as const };
+  return {
+    pending: false as const,
+    playbackUrl,
+    duration: typeof status.result?.duration === "number" ? status.result.duration : null,
+    thumbnail: typeof status.result?.thumbnail === "string" ? status.result.thumbnail : null,
+  };
+}
+
+function directUploadUrl(value: string) {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error("Could not start the upload.");
+  }
+  const host = url.hostname;
+  const allowed =
+    url.protocol === "https:" &&
+    (host === "upload.videodelivery.net" ||
+      host === "upload.cloudflarestream.com" ||
+      host.endsWith(".videodelivery.net") ||
+      host.endsWith(".cloudflarestream.com"));
+  if (!allowed) throw new Error("Could not start the upload.");
+  return url.toString();
+}
+
+export async function createDirectUpload(title: string) {
+  const { account, token } = cloudflareAuth();
+  const response = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${account}/stream/direct_upload`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        maxDurationSeconds: 1800,
+        meta: { name: title },
+      }),
+    },
+  );
+  const payload = (await response.json()) as {
+    success?: boolean;
+    errors?: { message?: string }[];
+    result?: { uid?: string; uploadURL?: string };
+  };
+  const uid = payload.result?.uid ?? "";
+  const uploadUrl = payload.result?.uploadURL ?? "";
+  if (!response.ok || !payload.success || !/^[A-Za-z0-9]{16,64}$/.test(uid)) {
+    throw new Error(payload.errors?.[0]?.message || "Could not start the upload.");
+  }
+  return { uid, uploadUrl: directUploadUrl(uploadUrl) };
+}
+
+export function formatStreamDuration(seconds: number | null | undefined) {
+  if (seconds == null || !Number.isFinite(seconds)) return "0:00";
+  const total = Math.max(0, Math.round(seconds));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const secs = total % 60;
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+  }
+  return `${minutes}:${String(secs).padStart(2, "0")}`;
+}
+
+function publicStreamThumbnail(value: string | null) {
+  if (!value) return null;
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+  const host = url.hostname;
+  const allowed =
+    url.protocol === "https:" &&
+    (host.endsWith(".cloudflarestream.com") ||
+      host === "videodelivery.net" ||
+      host.endsWith(".videodelivery.net"));
+  return allowed ? url.toString() : null;
+}
+
+export async function thumbnailForUpload(
+  title: string,
+  preferred: string,
+  streamThumbnail: string | null,
+) {
+  const chosen = preferred.trim();
+  if (chosen.startsWith("https://imagedelivery.net/")) return chosen;
+  if (chosen) throw new Error("Use a thumbnail from your channel tools.");
+  const fromStream = publicStreamThumbnail(streamThumbnail);
+  if (fromStream) {
+    try {
+      return await uploadImage(fromStream);
+    } catch {
+      return fromStream;
+    }
+  }
+  return createThumbnail(title);
 }
 
 function slugify(title: string) {
@@ -344,5 +488,76 @@ export async function saveGeneratedVideo(title: string, thumbnail: string, playb
     .set({ videoCount: sql`coalesce(${channels.videoCount}, 0) + 1` })
     .where(eq(channels.id, channelId));
 
+  return slug;
+}
+
+export async function saveShelfVideo(input: {
+  channelId: string;
+  shelfId: string;
+  title: string;
+  thumbnail: string;
+  playbackUrl: string;
+  duration: string;
+}) {
+  const thumbnailOk =
+    input.thumbnail.startsWith("https://imagedelivery.net/") ||
+    publicStreamThumbnail(input.thumbnail) === input.thumbnail;
+  if (!thumbnailOk) throw new Error("Add a thumbnail image for this video.");
+  if (!input.playbackUrl.startsWith("https://")) throw new Error("Unexpected video address.");
+
+  const [shelf] = await db
+    .select({ id: shelves.id })
+    .from(shelves)
+    .where(and(eq(shelves.id, input.shelfId), eq(shelves.channelId, input.channelId)))
+    .limit(1);
+  if (!shelf) throw new Error("That shelf is not on your channel.");
+
+  const [existing] = await db
+    .select({ slug: videos.slug, channelId: videos.channelId })
+    .from(videos)
+    .where(eq(videos.playbackUrl, input.playbackUrl))
+    .limit(1);
+  if (existing) {
+    if (existing.channelId !== input.channelId) {
+      throw new Error("That video is already on another channel.");
+    }
+    return existing.slug;
+  }
+
+  const [last] = await db
+    .select({ sectionOrder: videos.sectionOrder })
+    .from(videos)
+    .where(eq(videos.shelfId, input.shelfId))
+    .orderBy(desc(videos.sectionOrder))
+    .limit(1);
+
+  const slug = await uniqueSlug(input.title);
+  await db.insert(videos).values({
+    slug,
+    channelId: input.channelId,
+    shelfId: input.shelfId,
+    title: input.title,
+    description: input.title,
+    paragraphs: [input.title],
+    views: "0 views",
+    uploaded: "Just now",
+    duration: input.duration,
+    thumbnail: input.thumbnail,
+    playbackUrl: input.playbackUrl,
+    overlay: [],
+    categories: ["Funny Cats"],
+    likes: "0",
+    hashtags: ["cats"],
+    commentCount: 0,
+    showOnHome: false,
+    featured: false,
+    homeOrder: 0,
+    relatedOrder: 0,
+    sectionOrder: (last?.sectionOrder ?? -1) + 1,
+  });
+  await db
+    .update(channels)
+    .set({ videoCount: sql`coalesce(${channels.videoCount}, 0) + 1` })
+    .where(eq(channels.id, input.channelId));
   return slug;
 }

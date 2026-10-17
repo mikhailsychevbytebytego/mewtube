@@ -4,18 +4,21 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { CatConfetti } from "@/components/cat-confetti";
 import { GuideSidebar } from "@/components/guide-sidebar";
+import { LoginDialog } from "@/components/login-dialog";
+import { useSubscribe } from "@/components/use-subscribe";
 import {
   BellIcon,
   CheckIcon,
   MenuIcon,
-  MicIcon,
   PawIcon,
   PlayMark,
   SearchIcon,
   ThumbIcon,
 } from "@/components/icons";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { VoiceSearchButton } from "@/components/voice-search-button";
 import { channelTabs, type ChannelPage, type ChannelTab, type ChannelVideo } from "@/lib/channel";
 import { channelHref, searchHref } from "@/lib/videos";
 
@@ -123,14 +126,21 @@ function ShelfCard({
   );
 }
 
-export function ChannelScreen({ channel }: { channel: ChannelPage }) {
+export function ChannelScreen({
+  channel,
+  subscribed: initiallySubscribed = false,
+}: {
+  channel: ChannelPage;
+  subscribed?: boolean;
+}) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [youOpen, setYouOpen] = useState(true);
   const [tab, setTab] = useState<ChannelTab>("Home");
-  const [subscribed, setSubscribed] = useState(false);
+  const { subscribed, confetti, loginOpen, setLoginOpen, subscribe, finishLogin } =
+    useSubscribe(channel.handle, initiallySubscribed);
   const [bioOpen, setBioOpen] = useState(false);
 
   function submitSearch(event: FormEvent) {
@@ -162,6 +172,12 @@ export function ChannelScreen({ channel }: { channel: ChannelPage }) {
 
   return (
     <div className="flex h-full overflow-hidden bg-background text-ink">
+      <CatConfetti burst={confetti} />
+      <LoginDialog
+        open={loginOpen}
+        onClose={() => setLoginOpen(false)}
+        onSuccess={finishLogin}
+      />
       {mobileOpen ? (
         <button
           type="button"
@@ -242,13 +258,12 @@ export function ChannelScreen({ channel }: { channel: ChannelPage }) {
               <SearchIcon />
             </button>
           </form>
-          <button
-            type="button"
-            aria-label="Voice search"
-            className="hidden size-[46px] shrink-0 place-items-center rounded-full bg-chip hover:bg-hover sm:grid"
-          >
-            <MicIcon />
-          </button>
+          <VoiceSearchButton
+            className="size-[46px]"
+            wrapperClassName="hidden sm:block"
+            onChange={setQuery}
+            onCommit={(transcript) => router.push(searchHref(transcript))}
+          />
           <div className="flex shrink-0 items-center gap-3 sm:gap-[18px]">
             <p className="hidden w-[104px] -rotate-6 text-center font-script text-lg leading-[1.05] text-ink xl:block">
               Life is
@@ -354,7 +369,7 @@ export function ChannelScreen({ channel }: { channel: ChannelPage }) {
               <button
                 type="button"
                 aria-pressed={subscribed}
-                onClick={() => setSubscribed((value) => !value)}
+                onClick={subscribe}
                 className={`flex h-[43px] items-center gap-2.5 rounded-full px-5 text-base font-bold ${
                   subscribed ? "bg-chip text-ink" : "bg-ink text-background"
                 }`}

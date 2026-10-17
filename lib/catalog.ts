@@ -1,7 +1,7 @@
-import { and, asc, eq, isNotNull, ne, sql } from "drizzle-orm";
-import { channels, comments, users, videos } from "@/drizzle/schema";
+import { and, asc, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
+import { channels, comments, shelves, users, videos } from "@/drizzle/schema";
 import { db } from "@/lib/db";
-import type { ChannelPage, ChannelVideo } from "@/lib/channel";
+import type { ChannelPage, ChannelShelf, ChannelVideo, OwnedChannelPage } from "@/lib/channel";
 import type { Video, VideoCategory } from "@/lib/videos";
 import type { WatchComment } from "@/lib/watch";
 
@@ -40,6 +40,7 @@ type VideoRow = {
   showOnHome: boolean;
   featured: boolean;
   channelSection: string | null;
+  shelfId: string | null;
   channelName: string;
   channelHandle: string;
   subscribers: string | null;
@@ -118,6 +119,7 @@ const videoColumns = {
   showOnHome: videos.showOnHome,
   featured: videos.featured,
   channelSection: videos.channelSection,
+  shelfId: videos.shelfId,
   channelName: channels.name,
   channelHandle: channels.slug,
   subscribers: channels.subscribers,
@@ -131,6 +133,14 @@ function videoQuery() {
     .select(videoColumns)
     .from(videos)
     .innerJoin(channels, eq(videos.channelId, channels.id));
+}
+
+export async function getVideosForChannels(channelIds: string[]) {
+  if (channelIds.length === 0) return [];
+  const rows = await videoQuery()
+    .where(inArray(videos.channelId, channelIds))
+    .orderBy(desc(videos.homeOrder), desc(videos.sectionOrder), asc(videos.title));
+  return rows.map(toVideo);
 }
 
 export async function getHomeVideos() {
@@ -217,6 +227,49 @@ export async function getChannelPage(handle: string) {
   const rows = await videoQuery()
     .where(eq(videos.channelId, channel.id))
     .orderBy(asc(videos.sectionOrder));
+
+  if (channel.ownerId) {
+    const shelfRows = await db
+      .select({ id: shelves.id, title: shelves.title })
+      .from(shelves)
+      .where(eq(shelves.channelId, channel.id))
+      .orderBy(asc(shelves.sortOrder), asc(shelves.title));
+    const grouped = new Map<string, ChannelVideo[]>(shelfRows.map((shelf) => [shelf.id, []]));
+    for (const row of rows) {
+      if (!row.shelfId) continue;
+      const list = grouped.get(row.shelfId);
+      if (!list) continue;
+      list.push({
+        id: row.id,
+        title: row.title,
+        subtitle: row.subtitle ?? undefined,
+        views: row.views ?? undefined,
+        uploaded: row.uploaded ?? undefined,
+        duration: row.duration,
+        image: row.thumbnail,
+        overlay: row.overlay,
+        watchId: row.slug,
+      });
+    }
+    const pageShelves: ChannelShelf[] = shelfRows.map((shelf) => ({
+      id: shelf.id,
+      title: shelf.title,
+      videos: grouped.get(shelf.id) ?? [],
+    }));
+    const count = channel.videoCount ?? rows.length;
+    const owned: OwnedChannelPage = {
+      kind: "owned",
+      ownerId: channel.ownerId,
+      name: channel.name,
+      handle: channel.slug,
+      subscribersLabel: `${channel.subscribers ?? "0 subscribers"} · ${count} videos`,
+      bannerImage: channel.bannerImage,
+      avatarColor: channel.avatarColor,
+      innerEar: channel.innerEar ?? "#f3c2c8",
+      shelves: pageShelves,
+    };
+    return owned;
+  }
 
   const featuredRow = rows.find((row) => row.featured);
   if (!channel.hasPage || !featuredRow) {

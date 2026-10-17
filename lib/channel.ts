@@ -146,3 +146,23 @@ export const channelTabs = [
 ] as const;
 
 export type ChannelTab = (typeof channelTabs)[number];
+
+export type ChannelShelf = {
+  id: string;
+  title: string;
+  videos: ChannelVideo[];
+};
+
+export type OwnedChannelPage = {
+  kind: "owned";
+  ownerId: string;
+  name: string;
+  handle: string;
+  subscribersLabel: string;
+  bannerImage: string | null;
+  avatarColor: string;
+  innerEar: string;
+  shelves: ChannelShelf[];
+};
+
+export type PublicOwnedChannel = Omit<OwnedChannelPage, "kind" | "ownerId">;
