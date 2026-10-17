@@ -1,3 +1,5 @@
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   AutoTokenizer,
   CLIPTextModelWithProjection,
@@ -7,6 +9,7 @@ import {
 } from "@xenova/transformers";
 
 env.allowLocalModels = false;
+env.cacheDir = join(tmpdir(), "cattube-transformers");
 
 const MODEL = "Xenova/clip-vit-base-patch32";
 const DIMENSIONS = 512;

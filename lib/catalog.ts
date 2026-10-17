@@ -1,6 +1,5 @@
 import { and, asc, eq, isNotNull, ne, sql } from "drizzle-orm";
 import { channels, comments, users, videos } from "@/drizzle/schema";
-import { embedQuery } from "@/lib/clip";
 import { db } from "@/lib/db";
 import type { ChannelPage, ChannelVideo } from "@/lib/channel";
 import type { Video, VideoCategory } from "@/lib/videos";
@@ -144,6 +143,7 @@ export async function getHomeVideos() {
 export async function searchVideos(query: string) {
   const trimmed = query.trim().slice(0, 200);
   if (!trimmed) return [];
+  const { embedQuery } = await import("@/lib/clip");
   const embedding = await embedQuery(trimmed);
   const literal = `[${embedding.join(",")}]`;
   const rows = await videoQuery()
